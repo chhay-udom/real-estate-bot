@@ -220,16 +220,27 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     return ConversationHandler.END
 
 def main():
-    # សំខាន់៖ ប្រើ Application.builder() ដោយផ្ទាល់
     app = Application.builder().token(TOKEN).build()
     
-    # [បន្ថែម conv_handler របស់អ្នកដូចមុន]
+    # កំណត់ ConversationHandler ឱ្យបានត្រឹមត្រូវ
+    conv_handler = ConversationHandler(
+        entry_points=[CommandHandler("start", start)],
+        states={
+            CHOOSING_TYPE: [CallbackQueryHandler(handle_type)],
+            CHOOSING_LOCATION: [CallbackQueryHandler(handle_location)],
+            CHOOSING_BUDGET: [CallbackQueryHandler(handle_budget)],
+            CHOOSING_PAYMENT: [CallbackQueryHandler(handle_payment)],
+            GETTING_NAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_name)],
+            GETTING_PHONE: [MessageHandler(filters.CONTACT | filters.TEXT & ~filters.COMMAND, handle_phone)],
+        },
+        fallbacks=[CommandHandler("cancel", cancel)],
+    )
+    
     app.add_handler(conv_handler)
     
     print("Starting Webhook...")
     
     # ប្រើ run_webhook តែមួយគត់
-    # សំខាន់: listen="0.0.0.0" គឺចាំបាច់សម្រាប់ Render
     app.run_webhook(
         listen="0.0.0.0",
         port=int(os.environ.get("PORT", 8080)),
