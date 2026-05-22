@@ -6,7 +6,6 @@ from telegram.ext import (
     Application, CommandHandler, MessageHandler, CallbackQueryHandler,
     ContextTypes, ConversationHandler, filters,
 )
-from keep_alive import keep_alive
 
 # កំណត់ការបង្ហាញ Log
 logging.basicConfig(format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO)
@@ -222,22 +221,14 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
 def main():
     app = Application.builder().token(TOKEN).build()
-    # ... (handlers របស់អ្នក) ...
-    app.add_handler(conv_handler)
     
-    # ចាប់ផ្តើម Webhook ដោយមិនចាំបាច់ block កូដ
-    # យើងប្រើការងារស្របគ្នា
+    # [ដាក់ handlers របស់អ្នកនៅទីនេះ]
+    
     print("Starting Webhook...")
     
-    # កំណត់ Webhook ទៅ Telegram
-    app.bot.set_webhook(url=f"{WEBHOOK_URL}/{TOKEN}", drop_pending_updates=True)
-    
-    # ជំនួសឱ្យការប្រើ run_webhook (ដែលរារាំង port), 
-    # យើងប្រើ keep_alive ដើម្បីបើក port 8080 សម្រាប់ Render
-    
-    # ប្រើ run_polling តែជាមួយអ្វីដែលវាត្រូវការ (webhook update)
-    # ប៉ុន្តែវិធីដែលស្រួលបំផុតគឺប្រើ app.run_webhook ប៉ុន្តែត្រូវប្រាកដថា 
-    # គ្មានអ្វីផ្សេងទៀតកំពុងប្រើ port 8080
+    # កុំប្រើ keep_alive()
+    # កុំប្រើ run_polling()
+    # ប្រើតែ run_webhook នេះតែមួយគត់
     app.run_webhook(
         listen="0.0.0.0",
         port=int(os.environ.get("PORT", 8080)),
