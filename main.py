@@ -1,6 +1,7 @@
 import logging
 import mysql.connector
 import os
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup, ReplyKeyboardRemove
 from telegram.ext import (
     Application, CommandHandler, MessageHandler, CallbackQueryHandler,
     ContextTypes, ConversationHandler, filters,
@@ -11,20 +12,18 @@ from keep_alive import keep_alive
 logging.basicConfig(format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO)
 
 CHOOSING_TYPE, CHOOSING_LOCATION, CHOOSING_BUDGET, CHOOSING_PAYMENT, GETTING_NAME, GETTING_PHONE = range(6)
+AGENT_CHAT_ID = "-4998273283"
+TOKEN = "8771495453:AAGXJiAcSrYL23HsWoDIutJk-S4e6GWJics"
+WEBHOOK_URL = "https://real-estate-bot-7drd.onrender.com"
 
-# =========================================================
-# កំណត់លេខ ID របស់ Agent ឬ Group ដែលត្រូវទទួលសារនៅទីនេះ
-# =========================================================
-AGENT_CHAT_ID = "-4998273283"  # <-- លេខ Group ID របស់អ្នក
-
-# មុខងារភ្ជាប់ទៅកាន់ Database (Aiven)
 def get_db_connection():
     return mysql.connector.connect(
         host="mysql-3d44dfd3-bot-project.i.aivencloud.com",
-        user="avnadmin",         
-        password="AVNS_i6gzgyV5-18ereaucCB",         
+        user="avnadmin",
+        password="AVNS_i6gzgyV5-18ereaucCB",
         port=25516,
-        database="defaultdb" # Aiven តែងតែប្រើឈ្មោះ defaultdb
+        database="defaultdb",
+        ssl_disabled=True
     )
 
 # (ជំហានទី ១)
@@ -247,19 +246,29 @@ def main():
     print("Bot កំពុងដំណើរការ...")
     # កែប្រែផ្នែកខាងក្រោមនៃ main()៖
 def main():
-    TOKEN = "8771495453:AAGXJiAcSrYL23HsWoDIutJk-S4e6GWJics"
-    WEBHOOK_URL = "https://real-estate-bot-7drd.onrender.com"
-    
     app = Application.builder().token(TOKEN).build()
     
-    # បន្ថែម conv_handler របស់អ្នកចូលត្រង់នេះ
-    conv_handler = ConversationHandler(...) 
+    conv_handler = ConversationHandler(
+        entry_points=[CommandHandler("start", start)],
+        states={
+            CHOOSING_TYPE: [CallbackQueryHandler(handle_type)],
+            CHOOSING_LOCATION: [CallbackQueryHandler(handle_location)],
+            CHOOSING_BUDGET: [CallbackQueryHandler(handle_budget)],
+            CHOOSING_PAYMENT: [CallbackQueryHandler(handle_payment)],
+            GETTING_NAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_name)],
+            GETTING_PHONE: [MessageHandler(filters.CONTACT | filters.TEXT & ~filters.COMMAND, handle_phone)],
+        },
+        fallbacks=[CommandHandler("cancel", cancel)],
+    )
+    
     app.add_handler(conv_handler)
     
-    # ហៅនាឡិការោទិ៍ (បើក Port 8080)
+    # បើក Web Server លើ Port 8080 តាមរយៈ keep_alive
     keep_alive()
     
-    print("Starting Webhook...")
+    print("Bot កំពុងដំណើរការជាមួយ Webhook...")
+    
+    # ប្រើ Webhook ជំនួស run_polling
     app.run_webhook(
         listen="0.0.0.0",
         port=int(os.environ.get("PORT", 8080)),
