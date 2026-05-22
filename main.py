@@ -221,8 +221,6 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     return ConversationHandler.END
 
 def main():
-    TOKEN = "8771495453:AAGXJiAcSrYL23HsWoDIutJk-S4e6GWJics"
-    
     app = Application.builder().token(TOKEN).build()
     
     conv_handler = ConversationHandler(
@@ -240,30 +238,7 @@ def main():
     
     app.add_handler(conv_handler)
     
-    # ហៅនាឡិការោទិ៍ឲ្យចាប់ផ្ដើមធ្វើការ
-    keep_alive()
-    
-    print("Bot កំពុងដំណើរការ...")
-    # កែប្រែផ្នែកខាងក្រោមនៃ main()៖
-def main():
-    app = Application.builder().token(TOKEN).build()
-    
-    conv_handler = ConversationHandler(
-        entry_points=[CommandHandler("start", start)],
-        states={
-            CHOOSING_TYPE: [CallbackQueryHandler(handle_type)],
-            CHOOSING_LOCATION: [CallbackQueryHandler(handle_location)],
-            CHOOSING_BUDGET: [CallbackQueryHandler(handle_budget)],
-            CHOOSING_PAYMENT: [CallbackQueryHandler(handle_payment)],
-            GETTING_NAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_name)],
-            GETTING_PHONE: [MessageHandler(filters.CONTACT | filters.TEXT & ~filters.COMMAND, handle_phone)],
-        },
-        fallbacks=[CommandHandler("cancel", cancel)],
-    )
-    
-    app.add_handler(conv_handler)
-    
-    # បើក Web Server លើ Port 8080 តាមរយៈ keep_alive
+    # បើក Web Server លើ Port 8080
     keep_alive()
     
     print("Bot កំពុងដំណើរការជាមួយ Webhook...")
@@ -278,3 +253,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+    
