@@ -1,17 +1,11 @@
 import logging
 import mysql.connector
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup, ReplyKeyboardRemove
+import os
 from telegram.ext import (
-    Application,
-    CommandHandler,
-    MessageHandler,
-    CallbackQueryHandler,
-    ContextTypes,
-    ConversationHandler,
-    filters,
+    Application, CommandHandler, MessageHandler, CallbackQueryHandler,
+    ContextTypes, ConversationHandler, filters,
 )
-# បញ្ចូលនាឡិការោទិ៍ដើម្បីកុំឲ្យ Render ដាក់ Bot ឲ្យដេក
-from keep_alive import keep_alive 
+from keep_alive import keep_alive
 
 # កំណត់ការបង្ហាញ Log
 logging.basicConfig(format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO)
@@ -251,7 +245,27 @@ def main():
     keep_alive()
     
     print("Bot កំពុងដំណើរការ...")
-    app.run_polling()
+    # កែប្រែផ្នែកខាងក្រោមនៃ main()៖
+def main():
+    TOKEN = "8771495453:AAGXJiAcSrYL23HsWoDIutJk-S4e6GWJics"
+    WEBHOOK_URL = "https://real-estate-bot-7drd.onrender.com"
+    
+    app = Application.builder().token(TOKEN).build()
+    
+    # បន្ថែម conv_handler របស់អ្នកចូលត្រង់នេះ
+    conv_handler = ConversationHandler(...) 
+    app.add_handler(conv_handler)
+    
+    # ហៅនាឡិការោទិ៍ (បើក Port 8080)
+    keep_alive()
+    
+    print("Starting Webhook...")
+    app.run_webhook(
+        listen="0.0.0.0",
+        port=int(os.environ.get("PORT", 8080)),
+        url_path=TOKEN,
+        webhook_url=f"{WEBHOOK_URL}/{TOKEN}"
+    )
 
 if __name__ == "__main__":
     main()
