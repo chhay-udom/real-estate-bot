@@ -10,6 +10,8 @@ from telegram.ext import (
     ConversationHandler,
     filters,
 )
+# បញ្ចូលនាឡិការោទិ៍ដើម្បីកុំឲ្យ Render ដាក់ Bot ឲ្យដេក
+from keep_alive import keep_alive 
 
 # កំណត់ការបង្ហាញ Log
 logging.basicConfig(format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO)
@@ -19,15 +21,16 @@ CHOOSING_TYPE, CHOOSING_LOCATION, CHOOSING_BUDGET, CHOOSING_PAYMENT, GETTING_NAM
 # =========================================================
 # កំណត់លេខ ID របស់ Agent ឬ Group ដែលត្រូវទទួលសារនៅទីនេះ
 # =========================================================
-AGENT_CHAT_ID = "-4998273283"  # <-- ប្ដូរលេខ Group ID របស់អ្នកនៅទីនេះ (ឧទាហរណ៍ -10012345678)
+AGENT_CHAT_ID = "-4998273283"  # <-- លេខ Group ID របស់អ្នក
 
-# មុខងារភ្ជាប់ទៅកាន់ Database (HeidiSQL/Laragon)
+# មុខងារភ្ជាប់ទៅកាន់ Database (Aiven)
 def get_db_connection():
     return mysql.connector.connect(
-        host="localhost",
-        user="root",         
-        password="",         
-        database="seu_real_estate_db"
+        host="mysql-3d44dfd3-bot-project.i.aivencloud.com",
+        user="avnadmin",         
+        password="AVNS_i6gzgyV5-18ereaucCB",         
+        port=25516,
+        database="defaultdb" # Aiven តែងតែប្រើឈ្មោះ defaultdb
     )
 
 # (ជំហានទី ១)
@@ -162,17 +165,32 @@ async def handle_phone(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
             reply_markup=ReplyKeyboardRemove()
         )
     else:
-        # ១. បញ្ចូលទិន្នន័យទៅកាន់ MySQL Database
+        # ១. បញ្ចូលទិន្នន័យទៅកាន់ MySQL Database (Aiven)
         try:
             db = get_db_connection()
             cursor = db.cursor()
+            
+            # បង្កើតតារាងដោយស្វ័យប្រវត្តិ ប្រសិនបើវាមិនទាន់មានក្នុង Aiven (សំខាន់ណាស់!)
+            cursor.execute("""
+            CREATE TABLE IF NOT EXISTS leads (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                customer_name VARCHAR(255) NOT NULL,
+                phone_number VARCHAR(50) NOT NULL,
+                property_type VARCHAR(100),
+                location VARCHAR(100),
+                budget VARCHAR(100),
+                payment_method VARCHAR(100),
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+            """)
+            
             sql = "INSERT INTO leads (customer_name, phone_number, property_type, location, budget, payment_method) VALUES (%s, %s, %s, %s, %s, %s)"
             val = (first_name, phone_number, prop_type, selected_loc, display_budget, payment)
             cursor.execute(sql, val)
             db.commit()
             cursor.close()
             db.close()
-            print("✅ Data saved to Database successfully!")
+            print("✅ Data saved to Aiven Database successfully!")
         except Exception as e:
             print(f"❌ Database Error: {e}")
 
@@ -188,11 +206,8 @@ async def handle_phone(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
         
         # ៣. ផ្ញើសារទៅកាន់ Agent (ឬ Group)
         try:
-            if AGENT_CHAT_ID != "-100xxxxxxxxxx": # ពិនិត្យមើលថាតើគាត់បានដូរលេខហើយឬនៅ
-                await context.bot.send_message(chat_id=AGENT_CHAT_ID, text=agent_message)
-                print("✅ Message sent to Agent!")
-            else:
-                print("⚠️ សូមប្ដូរ AGENT_CHAT_ID នៅក្នុងកូដសិន ទើបអាចផ្ញើសារទៅ Agent បាន!")
+            await context.bot.send_message(chat_id=AGENT_CHAT_ID, text=agent_message)
+            print("✅ Message sent to Agent!")
         except Exception as e:
             print(f"❌ Telegram Send Error: {e}")
 
@@ -231,6 +246,9 @@ def main():
     )
     
     app.add_handler(conv_handler)
+    
+    # ហៅនាឡិការោទិ៍ឲ្យចាប់ផ្ដើមធ្វើការ
+    keep_alive()
     
     print("Bot កំពុងដំណើរការ...")
     app.run_polling()
