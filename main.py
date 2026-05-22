@@ -239,7 +239,6 @@ def main():
     app.add_handler(conv_handler)
     
     # បើក Web Server លើ Port 8080
-    keep_alive()
     
     print("Bot កំពុងដំណើរការជាមួយ Webhook...")
     
