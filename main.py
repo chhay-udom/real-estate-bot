@@ -222,35 +222,26 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
 def main():
     app = Application.builder().token(TOKEN).build()
-    
-    conv_handler = ConversationHandler(
-        entry_points=[CommandHandler("start", start)],
-        states={
-            CHOOSING_TYPE: [CallbackQueryHandler(handle_type)],
-            CHOOSING_LOCATION: [CallbackQueryHandler(handle_location)],
-            CHOOSING_BUDGET: [CallbackQueryHandler(handle_budget)],
-            CHOOSING_PAYMENT: [CallbackQueryHandler(handle_payment)],
-            GETTING_NAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_name)],
-            GETTING_PHONE: [MessageHandler(filters.CONTACT | filters.TEXT & ~filters.COMMAND, handle_phone)],
-        },
-        fallbacks=[CommandHandler("cancel", cancel)],
-    )
-    
+    # ... (handlers របស់អ្នក) ...
     app.add_handler(conv_handler)
     
-    # បើក Web Server លើ Port 8080
+    # ចាប់ផ្តើម Webhook ដោយមិនចាំបាច់ block កូដ
+    # យើងប្រើការងារស្របគ្នា
+    print("Starting Webhook...")
     
-    print("Bot កំពុងដំណើរការជាមួយ Webhook...")
+    # កំណត់ Webhook ទៅ Telegram
+    app.bot.set_webhook(url=f"{WEBHOOK_URL}/{TOKEN}", drop_pending_updates=True)
     
-    # ប្រើ Webhook ជំនួស run_polling
+    # ជំនួសឱ្យការប្រើ run_webhook (ដែលរារាំង port), 
+    # យើងប្រើ keep_alive ដើម្បីបើក port 8080 សម្រាប់ Render
+    
+    # ប្រើ run_polling តែជាមួយអ្វីដែលវាត្រូវការ (webhook update)
+    # ប៉ុន្តែវិធីដែលស្រួលបំផុតគឺប្រើ app.run_webhook ប៉ុន្តែត្រូវប្រាកដថា 
+    # គ្មានអ្វីផ្សេងទៀតកំពុងប្រើ port 8080
     app.run_webhook(
-    listen="0.0.0.0",
-    port=int(os.environ.get("PORT", 8080)),
-    url_path=TOKEN,
-    webhook_url=f"{WEBHOOK_URL}/{TOKEN}",
-    drop_pending_updates=True  # បន្ថែមបន្ទាត់នេះ ដើម្បីលុបសារចាស់ៗដែលបង្កបញ្ហា
-)
-
-if __name__ == "__main__":
-    main()
-    
+        listen="0.0.0.0",
+        port=int(os.environ.get("PORT", 8080)),
+        url_path=TOKEN,
+        webhook_url=f"{WEBHOOK_URL}/{TOKEN}",
+        drop_pending_updates=True
+    )
