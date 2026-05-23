@@ -1,13 +1,25 @@
 import logging
 import mysql.connector
 import os
+import threading  # បន្ថែមមួយនេះ
+from flask import Flask  # បន្ថែមមួយនេះ
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup, ReplyKeyboardRemove
 from telegram.ext import (
     Application, CommandHandler, MessageHandler, CallbackQueryHandler,
     ContextTypes, ConversationHandler, filters,
 )
 
-# កំណត់ការបង្ហាញ Log
+# --- ការកំណត់ Flask ---
+flask_app = Flask(__name__)
+
+@flask_app.route('/')
+def home():
+    return "Bot is running", 200
+
+def run_flask():
+    flask_app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 8080)))
+
+# --- ការកំណត់ Bot ---
 logging.basicConfig(format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO)
 
 CHOOSING_TYPE, CHOOSING_LOCATION, CHOOSING_BUDGET, CHOOSING_PAYMENT, GETTING_NAME, GETTING_PHONE = range(6)
@@ -220,6 +232,10 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     return ConversationHandler.END
 
 def main():
+    # ១. ចាប់ផ្តើម Flask ក្នុង thread ដាច់ដោយឡែក
+    threading.Thread(target=run_flask, daemon=True).start()
+
+    # ២. ចាប់ផ្តើម Telegram Bot
     app = Application.builder().token(TOKEN).build()
     
     conv_handler = ConversationHandler(
@@ -237,7 +253,7 @@ def main():
     
     app.add_handler(conv_handler)
     
-    # ត្រូវប្រាកដថាផ្នែកនេះស្ថិតនៅខាងក្នុងមុខងារ main()
+    # ៣. ប្រើ Webhook
     port = int(os.environ.get("PORT", 8080))
     app.run_webhook(
         listen="0.0.0.0",
