@@ -6,7 +6,6 @@ from telegram.ext import (
     Application, CommandHandler, MessageHandler, CallbackQueryHandler,
     ContextTypes, ConversationHandler, filters,
 )
-from keep_alive import keep_alive
 
 # កំណត់ការបង្ហាញ Log
 logging.basicConfig(format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO)
@@ -223,6 +222,7 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 def main():
     app = Application.builder().token(TOKEN).build()
     
+    # កំណត់ conv_handler នៅទីនេះឱ្យបានត្រឹមត្រូវ
     conv_handler = ConversationHandler(
         entry_points=[CommandHandler("start", start)],
         states={
@@ -238,18 +238,12 @@ def main():
     
     app.add_handler(conv_handler)
     
-    # បើក Web Server លើ Port 8080
-    
-    print("Bot កំពុងដំណើរការជាមួយ Webhook...")
-    
-    # ប្រើ Webhook ជំនួស run_polling
+    # បើក Webhook
+    port = int(os.environ.get("PORT", 8080))
     app.run_webhook(
         listen="0.0.0.0",
-        port=int(os.environ.get("PORT", 8080)),
+        port=port,
         url_path=TOKEN,
-        webhook_url=f"{WEBHOOK_URL}/{TOKEN}"
+        webhook_url=f"{WEBHOOK_URL}/{TOKEN}",
+        drop_pending_updates=True
     )
-
-if __name__ == "__main__":
-    main()
-    
