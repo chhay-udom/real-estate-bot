@@ -222,7 +222,6 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 def main():
     app = Application.builder().token(TOKEN).build()
     
-    # កំណត់ conv_handler នៅទីនេះឱ្យបានត្រឹមត្រូវ
     conv_handler = ConversationHandler(
         entry_points=[CommandHandler("start", start)],
         states={
@@ -238,7 +237,7 @@ def main():
     
     app.add_handler(conv_handler)
     
-    # បើក Webhook
+    # ត្រូវប្រាកដថាផ្នែកនេះស្ថិតនៅខាងក្នុងមុខងារ main()
     port = int(os.environ.get("PORT", 8080))
     app.run_webhook(
         listen="0.0.0.0",
@@ -247,3 +246,6 @@ def main():
         webhook_url=f"{WEBHOOK_URL}/{TOKEN}",
         drop_pending_updates=True
     )
+
+if __name__ == "__main__":
+    main()
