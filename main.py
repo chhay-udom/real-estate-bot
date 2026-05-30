@@ -1,40 +1,37 @@
 import logging
 import mysql.connector
 import os
-import threading  # បន្ថែមមួយនេះ
-from flask import Flask  # បន្ថែមមួយនេះ
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup, ReplyKeyboardRemove
 from telegram.ext import (
     Application, CommandHandler, MessageHandler, CallbackQueryHandler,
     ContextTypes, ConversationHandler, filters,
 )
 
-# --- ការកំណត់ Flask ---
-flask_app = Flask(__name__)
-
-@flask_app.route('/')
-def home():
-    return "Bot is running", 200
-
-def run_flask():
-    flask_app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 8080)))
-
 # --- ការកំណត់ Bot ---
 logging.basicConfig(format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 CHOOSING_TYPE, CHOOSING_LOCATION, CHOOSING_BUDGET, CHOOSING_PAYMENT, GETTING_NAME, GETTING_PHONE = range(6)
-AGENT_CHAT_ID = "-4998273283"
-TOKEN = "8771495453:AAGXJiAcSrYL23HsWoDIutJk-S4e6GWJics"
-WEBHOOK_URL = "https://real-estate-bot-7drd.onrender.com"
+
+TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
+AGENT_CHAT_ID = os.environ.get("AGENT_CHAT_ID")
+WEBHOOK_URL = os.environ.get("WEBHOOK_URL")
+
+
+def require_env(name: str, value: str | None) -> str:
+    if not value:
+        raise RuntimeError(f"Missing required environment variable: {name}")
+    return value
+
 
 def get_db_connection():
     return mysql.connector.connect(
-        host="mysql-3d44dfd3-bot-project.i.aivencloud.com",
-        user="avnadmin",
-        password="AVNS_i6gzgyV5-18ereaucCB",
-        port=25516,
-        database="defaultdb",
-        ssl_disabled=True
+        host=require_env("MYSQL_HOST", os.environ.get("MYSQL_HOST")),
+        user=require_env("MYSQL_USER", os.environ.get("MYSQL_USER")),
+        password=require_env("MYSQL_PASSWORD", os.environ.get("MYSQL_PASSWORD")),
+        port=int(os.environ.get("MYSQL_PORT", 3306)),
+        database=os.environ.get("MYSQL_DATABASE", "defaultdb"),
+        ssl_disabled=os.environ.get("MYSQL_SSL_DISABLED", "false").lower() == "true",
     )
 
 # (ជំហានទី ១)
@@ -194,9 +191,8 @@ async def handle_phone(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
             db.commit()
             cursor.close()
             db.close()
-            print("✅ Data saved to Aiven Database successfully!")
         except Exception as e:
-            print(f"❌ Database Error: {e}")
+            logger.exception("Database error: %s", e)
 
         # ២. ទម្រង់សារដែលត្រូវផ្ញើទៅ Agent
         agent_message = (
@@ -210,10 +206,9 @@ async def handle_phone(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
         
         # ៣. ផ្ញើសារទៅកាន់ Agent (ឬ Group)
         try:
-            await context.bot.send_message(chat_id=AGENT_CHAT_ID, text=agent_message)
-            print("✅ Message sent to Agent!")
+            await context.bot.send_message(chat_id=require_env("AGENT_CHAT_ID", AGENT_CHAT_ID), text=agent_message)
         except Exception as e:
-            print(f"❌ Telegram Send Error: {e}")
+            logger.exception("Telegram send error: %s", e)
 
         # ៤. ផ្ញើសារបញ្ជាក់ទៅកាន់អតិថិជន
         await update.message.reply_text(
@@ -232,11 +227,8 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     return ConversationHandler.END
 
 def main():
-    # ១. ចាប់ផ្តើម Flask ក្នុង thread ដាច់ដោយឡែក
-    threading.Thread(target=run_flask, daemon=True).start()
-
-    # ២. ចាប់ផ្តើម Telegram Bot
-    app = Application.builder().token(TOKEN).build()
+    token = require_env("TELEGRAM_BOT_TOKEN", TOKEN)
+    app = Application.builder().token(token).build()
     
     conv_handler = ConversationHandler(
         entry_points=[CommandHandler("start", start)],
@@ -246,22 +238,26 @@ def main():
             CHOOSING_BUDGET: [CallbackQueryHandler(handle_budget)],
             CHOOSING_PAYMENT: [CallbackQueryHandler(handle_payment)],
             GETTING_NAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_name)],
-            GETTING_PHONE: [MessageHandler(filters.CONTACT | filters.TEXT & ~filters.COMMAND, handle_phone)],
+            GETTING_PHONE: [MessageHandler(filters.CONTACT | (filters.TEXT & ~filters.COMMAND), handle_phone)],
         },
         fallbacks=[CommandHandler("cancel", cancel)],
     )
     
     app.add_handler(conv_handler)
     
-    # ៣. ប្រើ Webhook
-    port = int(os.environ.get("PORT", 8080))
-    app.run_webhook(
-        listen="0.0.0.0",
-        port=port,
-        url_path=TOKEN,
-        webhook_url=f"{WEBHOOK_URL}/{TOKEN}",
-        drop_pending_updates=True
-    )
+    if WEBHOOK_URL:
+        port = int(os.environ.get("PORT", 10000))
+        logger.info("Starting bot with webhook on port %s", port)
+        app.run_webhook(
+            listen="0.0.0.0",
+            port=port,
+            url_path=token,
+            webhook_url=f"{WEBHOOK_URL.rstrip('/')}/{token}",
+            drop_pending_updates=True
+        )
+    else:
+        logger.info("Starting bot with polling")
+        app.run_polling(drop_pending_updates=True)
 
 if __name__ == "__main__":
     main()
